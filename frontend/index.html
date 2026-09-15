@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Image Pipeline Upload</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 80px auto;
+            text-align: center;
+        }
+        #dropzone {
+            border: 2px dashed #888;
+            border-radius: 10px;
+            padding: 40px;
+            cursor: pointer;
+        }
+        #dropzone.dragover {
+            background: #f0f0f0;
+            border-color: #333;
+        }
+        #status {
+            margin-top: 20px;
+            font-weight: bold;
+        }
+        #preview {
+            max-width: 100%;
+            margin-top: 20px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Image Pipeline Demo</h1>
+<p>Upload an image — it'll be automatically resized in the cloud.</p>
+
+<div id="dropzone">
+    <p>Click to choose a file, or drag one here</p>
+    <input type="file" id="fileInput" accept="image/*" style="display:none">
+</div>
+
+<div id="status"></div>
+<img id="preview" style="display:none">
+
+<script>
+    const API_URL = "https://mvp0yw0iw2.execute-api.af-south-1.amazonaws.com/upload-url";
+
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const status = document.getElementById('status');
+    const preview = document.getElementById('preview');
+
+    dropzone.addEventListener('click', () => fileInput.click());
+
+    dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('dragover');
+    });
+
+    dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('dragover');
+    });
+
+    dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+            handleFile(e.dataTransfer.files[0]);
+        }
+    });
+
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files.length) {
+            handleFile(fileInput.files[0]);
+        }
+    });
+
+    async function handleFile(file) {
+        status.textContent = "Requesting upload URL...";
+        preview.style.display = "none";
+
+        const fileExtension = file.name.split('.').pop();
+
+        try {
+            // Step 1: ask our API for a pre-signed upload URL
+            const res = await fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ fileType: fileExtension })
+            });
+
+            if (!res.ok) throw new Error("Failed to get upload URL");
+            const { uploadUrl } = await res.json();
+
+            // Step 2: upload the file directly to S3 using that URL
+            status.textContent = "Uploading...";
+            const uploadRes = await fetch(uploadUrl, {
+                method: "PUT",
+                body: file
+            });
+
+            if (!uploadRes.ok) throw new Error("Upload failed");
+
+            status.textContent = "Uploaded! Processing in the cloud now (check your processed bucket in a few seconds).";
+            preview.src = URL.createObjectURL(file);
+            preview.style.display = "block";
+
+        } catch (err) {
+            console.error(err);
+            status.textContent = "Something went wrong: " + err.message;
+        }
+    }
+</script>
+
+</body>
+</html>
