@@ -5,8 +5,10 @@ import io
 from urllib.parse import unquote_plus
 
 s3 = boto3.client('s3')
+sns = boto3.client('sns', region_name='af-south-1')
 
 PROCESSED_BUCKET = 'limphom-image-pipeline-processed'
+SNS_TOPIC_ARN = 'arn:aws:sns:af-south-1:302432775490:image-pipeline-notifications'
 MAX_SIZE = (800, 800)
 
 def lambda_handler(event, context):
@@ -36,6 +38,14 @@ def lambda_handler(event, context):
     )
 
     print(f"Saved processed image as {processed_key} in {PROCESSED_BUCKET}")
+
+    sns.publish(
+        TopicArn=SNS_TOPIC_ARN,
+        Subject="Image Pipeline: Processing Complete",
+        Message=f"Your image '{object_key}' has been processed successfully.\n\nSaved as: {processed_key}\nBucket: {PROCESSED_BUCKET}"
+    )
+
+    print("Notification sent")
 
     return {
         'statusCode': 200,
