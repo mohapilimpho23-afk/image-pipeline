@@ -11,6 +11,19 @@ PROCESSED_BUCKET = 'limphom-image-pipeline-processed'
 SNS_TOPIC_ARN = 'arn:aws:sns:af-south-1:302432775490:image-pipeline-notifications'
 MAX_SIZE = (800, 800)
 
+
+def resize_image(image_bytes, max_size=MAX_SIZE):
+    """Takes raw image bytes, returns resized JPEG bytes. Pure function, no AWS calls."""
+    image = Image.open(io.BytesIO(image_bytes))
+    image = image.convert('RGB')
+    image.thumbnail(max_size)
+
+    output_buffer = io.BytesIO()
+    image.save(output_buffer, format='JPEG', quality=85)
+    output_buffer.seek(0)
+    return output_buffer.read()
+
+
 def lambda_handler(event, context):
     record = event['Records'][0]
     source_bucket = record['s3']['bucket']['name']
@@ -21,19 +34,13 @@ def lambda_handler(event, context):
     response = s3.get_object(Bucket=source_bucket, Key=object_key)
     image_data = response['Body'].read()
 
-    image = Image.open(io.BytesIO(image_data))
-    image = image.convert('RGB')
-    image.thumbnail(MAX_SIZE)
-
-    output_buffer = io.BytesIO()
-    image.save(output_buffer, format='JPEG', quality=85)
-    output_buffer.seek(0)
+    resized_bytes = resize_image(image_data)
 
     processed_key = f"processed-{object_key}"
     s3.put_object(
         Bucket=PROCESSED_BUCKET,
         Key=processed_key,
-        Body=output_buffer,
+        Body=resized_bytes,
         ContentType='image/jpeg'
     )
 
