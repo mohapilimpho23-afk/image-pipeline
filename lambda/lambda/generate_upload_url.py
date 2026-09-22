@@ -9,17 +9,28 @@ s3 = boto3.client(
 )
 
 UPLOAD_BUCKET = 'limphom-image-pipeline-uploads'
+DEFAULT_EXTENSION = 'jpg'
 
-def lambda_handler(event, context):
-    file_extension = 'jpg'
 
+def parse_file_extension(event):
+    """Extracts the file extension from the request body, defaulting to jpg
+    if it's missing or the body is malformed. Pure function, no AWS calls."""
     try:
         body = json.loads(event.get('body', '{}'))
-        file_extension = body.get('fileType', 'jpg')
+        extension = body.get('fileType', DEFAULT_EXTENSION)
+        return extension if extension else DEFAULT_EXTENSION
     except Exception:
-        pass
+        return DEFAULT_EXTENSION
 
-    object_key = f"{uuid.uuid4()}.{file_extension}"
+
+def generate_object_key(file_extension):
+    """Builds a unique S3 object key for the upload. Pure function, no AWS calls."""
+    return f"{uuid.uuid4()}.{file_extension}"
+
+
+def lambda_handler(event, context):
+    file_extension = parse_file_extension(event)
+    object_key = generate_object_key(file_extension)
 
     presigned_url = s3.generate_presigned_url(
         'put_object',
