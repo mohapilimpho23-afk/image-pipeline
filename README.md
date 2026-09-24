@@ -89,6 +89,8 @@ Both started out with broader managed policies (`AdministratorAccess` / `AmazonS
 - A hosted frontend (e.g. S3 static website or CloudFront) instead of running locally.
 - Image format validation and virus/malware scanning before processing.
 
+WTC Submission : WTC-4RCBYYCW
+
 YOUTUBE DEMO : https://www.youtube.com/watch?v=WERt06c1-Ck
 ## Author
 
